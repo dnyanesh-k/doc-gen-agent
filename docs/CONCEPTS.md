@@ -141,3 +141,59 @@ The doc-gen-agent follows a 7-stage pipeline from code changes to generated docu
 ---
 
 ## Data Flow
+
+```
+Code Changes
+    ↓
+[Ingestion] → Changed Files
+    ↓
+[Preprocessing] → Categorized Changes + Doc Types
+    ↓
+[Feature Extraction] → Code Chunks + Embeddings
+    ↓
+[Indexing] → Stored in Vector DB
+    ↓
+[Retrieval & Augmentation] → Similar Code Context
+    ↓
+[Generation] → Documentation (Markdown)
+    ↓
+[Post-Processing] → Saved Files / Confluence
+```
+
+## Key Concepts Summary
+
+### Tokenization
+Breaking code/text into tokens for AI processing. Tokens are the basic units AI models understand.
+
+### Embeddings
+Converting code into numerical vectors (arrays of numbers) that capture semantic meaning. Similar code has similar vectors.
+
+### Vector Database
+Database optimized for storing and querying vectors. Enables fast similarity search using mathematical operations.
+
+### Semantic Search
+Finding similar content based on meaning (semantics) rather than exact text matching. Uses vector similarity.
+
+### RAG (Retrieval Augmented Generation)
+Technique that retrieves relevant context first, then augments the prompt with that context before generating output.
+
+### Prompt Engineering
+Crafting effective prompts that guide AI to produce desired output. Includes templates, examples, and instructions.
+
+### Context Window
+Maximum number of tokens that can be sent to AI in one request. Managing this is crucial for large codebases.
+
+### Cosine Similarity
+Mathematical measure of similarity between two vectors (0 = different, 1 = identical). Used for semantic search.
+
+---
+
+## Implementation Order
+
+1. **Phase 1-2**: Ingestion + Preprocessing (basic functionality)
+2. **Phase 3**: Feature Extraction (tokenization, chunking)
+3. **Phase 4-5**: Indexing + Retrieval (vector DB setup)
+4. **Phase 6**: Generation (AI integration)
+5. **Phase 7**: Post-Processing (file output, Confluence sync)
+
+Each phase builds on the previous, allowing incremental learning and testing.
