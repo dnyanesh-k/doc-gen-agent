@@ -1,0 +1,13 @@
+# AI DocGen Configuration
+# Minimal config - will expand as we build
+
+# File patterns that trigger documentation
+patterns:
+  - "*.py"
+  - "*.js"
+  - "*.ts"
+
+# Documentation types
+doc_types:
+  - "hld"  # High-Level Design
+  - "lld"  # Low-Level Design
