@@ -10,17 +10,11 @@ What this does:
 """
 
 import logging
-import sys
-from typing import List, Dict
+from typing import Dict
 from pathlib import Path
 
 from src.exceptions import GitNotInstalledError, InvalidRepositoryError
-from src.ingestion.change_detector import is_git_repo, get_remote_branch
-from src.ingestion.change_analyzer import (
-    get_commits_to_push,
-    get_changed_files_to_push,
-    analyze_changes_for_docs
-)
+from src.ingestion import is_git_repo, get_remote_branch, get_commits_to_push, get_changed_files_to_push, analyze_changes_for_docs
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -34,6 +28,14 @@ class DocGenPipeline:
     - Orchestrator pattern: coordinates multiple services
     - Single responsibility: manages flow, not business logic
     - DRY principle: get_remote_branch() called once in __init__
+    
+    Pipeline stages:
+    1. Ingestion - Detect and analyze code changes
+    2. Feature Extraction - Tokenize, chunk, generate embeddings
+    3. Indexing - Store embeddings in vector DB
+    4. Retrieval - Semantic search for similar code
+    5. Generation - Build prompts, send to LLM
+    6. Post-processing - Save documentation
     """
     
     def __init__(self, repo_path: str = "."):
@@ -78,22 +80,22 @@ class DocGenPipeline:
         }
         
         try:
-            # Step 0: Validate repository
-            print("\n[0/7] Validating repository...")
+            # ============== STAGE 1: INGESTION ==============
+            
+            # Step 1.1: Validate repository
+            print("\n[1/6] Ingestion: Validating repository...")
             if not is_git_repo(self.repo_path):
                 print("   ❌ Not a git repository")
                 results['status'] = 'not_a_repo'
                 return results
             print("   ✅ Valid git repository")
             
-            # Step 1: Get remote branch (ONCE - DRY principle)
-            print("\n[1/7] Getting remote branch...")
+            # Step 1.2: Get remote branch (ONCE - DRY principle)
             self.remote_branch = get_remote_branch(self.repo_path)
             results['remote_branch'] = self.remote_branch
             print(f"   ✅ Remote branch: {self.remote_branch}")
             
-            # Step 2: Check commits to push
-            print("\n[2/7] Checking commits to push...")
+            # Step 1.3: Check commits to push
             commits = get_commits_to_push(self.repo_path, self.remote_branch)
             results['commits_to_push'] = commits
             
@@ -103,8 +105,7 @@ class DocGenPipeline:
                 return results
             print(f"   ✅ Found {len(commits)} commit(s) to push")
             
-            # Step 3: Get changed files
-            print("\n[3/7] Getting changed files...")
+            # Step 1.4: Get changed files
             changed_files = get_changed_files_to_push(self.repo_path, self.remote_branch)
             results['changed_files'] = changed_files
             
@@ -114,8 +115,7 @@ class DocGenPipeline:
                 return results
             print(f"   ✅ Found {len(changed_files)} changed file(s)")
             
-            # Step 4: Analyze changes
-            print("\n[4/7] Analyzing changes...")
+            # Step 1.5: Analyze changes
             changes = analyze_changes_for_docs(self.repo_path, self.remote_branch)
             results['changes'] = changes
             print(f"   ✅ Analyzed {len(changes)} file(s)")
@@ -129,22 +129,28 @@ class DocGenPipeline:
                     'renamed': '📛'
                 }.get(change['change_type'], '❓')
                 print(f"      {emoji} {change['file_path']} (+{change['stats']['added']}/-{change['stats']['deleted']})")
-                print(f"      {change['diff']}")
             
             if len(changes) > 5:
-                print(f"CHANGES: {changes}")
                 print(f"      ... and {len(changes) - 5} more")
             
-            # Step 5: Feature extraction (future)
-            print("\n[5/7] Feature Extraction: Generating embeddings...")
+            # ============== STAGE 2: FEATURE EXTRACTION ==============
+            print("\n[2/6] Feature Extraction: Tokenize & chunk...")
             print("   ⏳ Not implemented yet")
             
-            # Step 6: Generation (future)
-            print("\n[6/7] Generation: Creating documentation...")
+            # ============== STAGE 3: INDEXING ==============
+            print("\n[3/6] Indexing: Store embeddings...")
             print("   ⏳ Not implemented yet")
             
-            # Step 7: Post-processing (future)
-            print("\n[7/7] Post-processing: Saving files...")
+            # ============== STAGE 4: RETRIEVAL ==============
+            print("\n[4/6] Retrieval: Semantic search...")
+            print("   ⏳ Not implemented yet")
+            
+            # ============== STAGE 5: GENERATION ==============
+            print("\n[5/6] Generation: Create documentation...")
+            print("   ⏳ Not implemented yet")
+            
+            # ============== STAGE 6: POST-PROCESSING ==============
+            print("\n[6/6] Post-processing: Save documentation...")
             print("   ⏳ Not implemented yet")
             
             results['status'] = 'complete'
