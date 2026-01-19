@@ -16,7 +16,7 @@ import logging
 import argparse
 from pathlib import Path
 
-from src.pipeline.orchestrator import DocGenPipeline
+from src.pipeline import DocGenPipeline
 
 
 def setup_logging(debug: bool = False):
@@ -51,7 +51,7 @@ def main():
     parser.add_argument(
         '--repo',
         type=str,
-        default='/home/dnyaneshwar/project/notes',
+        default='/home/dnyaneshwar/project/system-design',
         help='Path to git repository'
     )
     parser.add_argument(
