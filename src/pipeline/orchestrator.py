@@ -15,6 +15,7 @@ from pathlib import Path
 
 from src.exceptions import GitNotInstalledError, InvalidRepositoryError
 from src.ingestion import is_git_repo, get_remote_branch, get_commits_to_push, get_changed_files_to_push, analyze_changes_for_docs
+from src.feature_extraction import count_tokens, chunk_content, needs_chunking, generate_embedding
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ class DocGenPipeline:
             'commits_to_push': [],
             'changed_files': [],
             'changes': [],
+            'features': [],  # Feature extraction results
             'status': 'in_progress'
         }
         
@@ -135,7 +137,51 @@ class DocGenPipeline:
             
             # ============== STAGE 2: FEATURE EXTRACTION ==============
             print("\n[2/6] Feature Extraction: Tokenize & chunk...")
-            print("   ⏳ Not implemented yet")
+            
+            features = []
+            total_tokens = 0
+            chunked_count = 0
+            
+            for change in changes:
+                file_path = change['file_path']
+                content = change.get('content', '')
+                diff = change.get('diff', '')
+                
+                # Count tokens
+                content_tokens = count_tokens(content)
+                diff_tokens = count_tokens(diff)
+                total_tokens += content_tokens
+                
+                # Check if chunking needed
+                chunks = []
+                if needs_chunking(content):
+                    chunks = chunk_content(content)
+                    chunked_count += 1
+                else:
+                    # Single chunk (whole content)
+                    chunks = [{'content': content, 'tokens': content_tokens, 'index': 0}]
+                
+                feature = {
+                    'file_path': file_path,
+                    'change_type': change['change_type'],
+                    'content_tokens': content_tokens,
+                    'diff_tokens': diff_tokens,
+                    'chunks': chunks,
+                    'diff': diff
+                }
+                features.append(feature)
+            
+            results['features'] = features
+            
+            print(f"   ✅ Processed {len(features)} file(s)")
+            print(f"      Total tokens: {total_tokens}")
+            print(f"      diff: {diff}")
+            if chunked_count > 0:
+                print(f"      ⚠️  Files chunked: {chunked_count}")
+            
+            for f in features[:3]:
+                chunk_info = f"({len(f['chunks'])} chunks)" if len(f['chunks']) > 1 else ""
+                print(f"      📄 {f['file_path']}: {f['content_tokens']} tokens {chunk_info}")
             
             # ============== STAGE 3: INDEXING ==============
             print("\n[3/6] Indexing: Store embeddings...")
