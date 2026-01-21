@@ -9,7 +9,7 @@ Components:
 
 from src.feature_extraction.tokenizer import count_tokens, get_token_limit
 from src.feature_extraction.chunker import chunk_content, needs_chunking
-from src.feature_extraction.embeddings import generate_embedding, generate_embeddings_batch, get_embedding_dimensions
+from src.feature_extraction.embeddings import generate_embedding, generate_embeddings_batch, get_embedding_dimensions, is_embeddings_available
 
 __all__ = [
     'count_tokens',
@@ -18,5 +18,6 @@ __all__ = [
     'needs_chunking',
     'generate_embedding',
     'generate_embeddings_batch',
-    'get_embedding_dimensions'
+    'get_embedding_dimensions',
+    'is_embeddings_available'
 ]

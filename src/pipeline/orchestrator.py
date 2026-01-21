@@ -15,7 +15,7 @@ from pathlib import Path
 
 from src.exceptions import GitNotInstalledError, InvalidRepositoryError
 from src.ingestion import is_git_repo, get_remote_branch, get_commits_to_push, get_changed_files_to_push, analyze_changes_for_docs
-from src.feature_extraction import count_tokens, chunk_content, needs_chunking, generate_embedding
+from src.feature_extraction import count_tokens, chunk_content, needs_chunking, generate_embedding, generate_embeddings_batch
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -136,23 +136,38 @@ class DocGenPipeline:
                 print(f"      ... and {len(changes) - 5} more")
             
             # ============== STAGE 2: FEATURE EXTRACTION ==============
-            print("\n[2/6] Feature Extraction: Tokenize & chunk...")
+            print("\n[2/6] Feature Extraction: Tokenize, chunk & embed...")
+            
+            # Trust git workflow - files in diff are already filtered by .gitignore
+            # Binary files will have empty content (UnicodeDecodeError handled in get_file_content)
             
             features = []
             total_tokens = 0
             chunked_count = 0
+            skipped_count = 0
+            total_embeddings = 0
             
             for change in changes:
                 file_path = change['file_path']
                 content = change.get('content', '')
                 diff = change.get('diff', '')
                 
+                # For deleted files, use deleted lines from parsed_diff
+                if not content and change['change_type'] == 'deleted':
+                    content = "\n".join(change.get('parsed_diff', {}).get('deleted', []))
+                
+                # Skip if content is empty (binary files, unreadable, etc.)
+                if not content:
+                    logger.debug("Skipping empty content: %s", file_path)
+                    skipped_count += 1
+                    continue
+                
                 # Count tokens
                 content_tokens = count_tokens(content)
                 diff_tokens = count_tokens(diff)
                 total_tokens += content_tokens
                 
-                # Check if chunking needed
+                # Check if chunking needed and create chunks
                 chunks = []
                 if needs_chunking(content):
                     chunks = chunk_content(content)
@@ -161,27 +176,66 @@ class DocGenPipeline:
                     # Single chunk (whole content)
                     chunks = [{'content': content, 'tokens': content_tokens, 'index': 0}]
                 
+                # Generate embeddings for each chunk
+                print(f"      🔄 Embedding {file_path}...", end=" ")
+                chunk_contents = [chunk['content'] for chunk in chunks]
+                
+                try:
+                    # Batch embedding is more efficient
+                    embeddings = generate_embeddings_batch(chunk_contents)
+                    
+                    # Add embedding to each chunk
+                    for i, chunk in enumerate(chunks):
+                        chunk['embedding'] = embeddings[i] if i < len(embeddings) else []
+                    
+                    total_embeddings += len(embeddings)
+                    print(f"✅ ({len(chunks)} chunks)")
+                    
+                except Exception as e:
+                    logger.error("Embedding failed for %s: %s", file_path, str(e))
+                    print(f"❌ Error: {str(e)}")
+                    # Continue without embeddings
+                    for chunk in chunks:
+                        chunk['embedding'] = []
+                
+                # Generate embedding for diff (for searching by changes)
+                diff_embedding = []
+                if diff:
+                    try:
+                        diff_embedding = generate_embedding(diff)
+                    except Exception as e:
+                        logger.warning("Diff embedding failed for %s: %s", file_path, str(e))
+                
                 feature = {
                     'file_path': file_path,
                     'change_type': change['change_type'],
                     'content_tokens': content_tokens,
                     'diff_tokens': diff_tokens,
                     'chunks': chunks,
-                    'diff': diff
+                    'diff': diff,
+                    'diff_embedding': diff_embedding
                 }
                 features.append(feature)
             
             results['features'] = features
             
-            print(f"   ✅ Processed {len(features)} file(s)")
+            print(f"\n   ✅ Feature extraction complete:")
+            print(f"      Files processed: {len(features)}")
+            print(f"      Files skipped (empty/unreadable): {skipped_count}")
             print(f"      Total tokens: {total_tokens}")
-            print(f"      diff: {diff}")
+            print(f"      Total embeddings: {total_embeddings}")
             if chunked_count > 0:
-                print(f"      ⚠️  Files chunked: {chunked_count}")
+                print(f"      Files chunked: {chunked_count}")
             
-            for f in features[:3]:
+            # Summary of processed files
+            print(f"\n   📊 Processed files:")
+            for f in features[:5]:
                 chunk_info = f"({len(f['chunks'])} chunks)" if len(f['chunks']) > 1 else ""
-                print(f"      📄 {f['file_path']}: {f['content_tokens']} tokens {chunk_info}")
+                has_embedding = "✅" if f['chunks'] and f['chunks'][0].get('embedding') else "❌"
+                print(f"      {has_embedding} {f['file_path']}: {f['content_tokens']} tokens {chunk_info}")
+            
+            if len(features) > 5:
+                print(f"      ... and {len(features) - 5} more")
             
             # ============== STAGE 3: INDEXING ==============
             print("\n[3/6] Indexing: Store embeddings...")
