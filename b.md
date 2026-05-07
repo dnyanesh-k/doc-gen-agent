@@ -1,4 +1,4 @@
-# ARIA (`arcadia-aria`) — Technical System Design
+ Technical System Design
 
 **Audience:** Software engineers and AI/ML engineers who implement, extend, or operate ARIA.  
 **Scope:** Architecture, runtime behavior, data structures, and code touchpoints. Excludes team process, release management, and non-technical workflow.
